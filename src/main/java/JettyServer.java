@@ -1,10 +1,17 @@
+import org.eclipse.jetty.alpn.server.ALPNServerConnectionFactory;
+import org.eclipse.jetty.http2.HTTP2Cipher;
 import org.eclipse.jetty.http2.server.HTTP2CServerConnectionFactory;
+import org.eclipse.jetty.http2.server.HTTP2ServerConnectionFactory;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConnectionFactory;
+import org.eclipse.jetty.server.NegotiatingServerConnectionFactory;
+import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.server.SslConnectionFactory;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
 
 
 public class JettyServer
@@ -33,11 +40,9 @@ public class JettyServer
     http.setPort(HTTP_PORT);
     _server.addConnector(http);
 
-    /*
     // SSL Context Factory for HTTPS and HTTP/2
-    String jetty_distro = System.getProperty("jetty.distro","../../jetty-distribution/target/distribution");
     SslContextFactory sslContextFactory = new SslContextFactory();
-    sslContextFactory.setKeyStorePath(jetty_distro + "/demo-base/etc/keystore");
+    sslContextFactory.setKeyStorePath("resources/etc/keystore");
     sslContextFactory.setKeyStorePassword("OBF:1vny1zlo1x8e1vnw1vn61x8g1zlu1vn4");
     sslContextFactory.setKeyManagerPassword("OBF:1u2u1wml1z7s1z7a1wnl1u2g");
     sslContextFactory.setCipherComparator(HTTP2Cipher.COMPARATOR);
@@ -61,7 +66,6 @@ public class JettyServer
         new ServerConnector(_server,ssl,alpn,h2,new HttpConnectionFactory(https_config));
     http2Connector.setPort(HTTPS_PORT);
     _server.addConnector(http2Connector);
-    */
 
     ServletContextHandler handler = new ServletContextHandler(_server, "");
     handler.addServlet(new ServletHolder(new AckServlet()), "/*");
