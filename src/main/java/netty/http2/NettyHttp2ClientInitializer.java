@@ -1,4 +1,4 @@
-/*
+package netty.http2;/*
  * Copyright 2014 The Netty Project
  *
  * The Netty Project licenses this file to you under the Apache License, version 2.0 (the
@@ -28,9 +28,9 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http2.DefaultHttp2Connection;
 import io.netty.handler.codec.http2.DelegatingDecompressorFrameListener;
-import io.netty.handler.codec.http2.Http2ClientUpgradeCodec;
 import io.netty.handler.codec.http2.Http2Connection;
 import io.netty.handler.codec.http2.Http2FrameLogger;
+import io.netty.handler.codec.http2.Http2Settings;
 import io.netty.handler.codec.http2.HttpToHttp2ConnectionHandler;
 import io.netty.handler.codec.http2.HttpToHttp2ConnectionHandlerBuilder;
 import io.netty.handler.codec.http2.InboundHttp2ToHttpAdapterBuilder;
@@ -51,15 +51,21 @@ public class NettyHttp2ClientInitializer extends ChannelInitializer<SocketChanne
   private HttpToHttp2ConnectionHandler connectionHandler;
   private HttpResponseHandler responseHandler;
   private Http2SettingsHandler settingsHandler;
+  private NettyHttp2EventListener eventListener;
 
   public NettyHttp2ClientInitializer(SslContext sslCtx, int maxContentLength) {
     this.sslCtx = sslCtx;
     this.maxContentLength = maxContentLength;
+    this.eventListener = new NettyHttp2EventListener();
   }
 
   @Override
   public void initChannel(SocketChannel ch) throws Exception {
     final Http2Connection connection = new DefaultHttp2Connection(false);
+    final Http2Settings settings = new Http2Settings();
+    settings.initialWindowSize(65535);
+    settings.headerTableSize(4096);
+    connection.addListener(eventListener);
     connectionHandler = new HttpToHttp2ConnectionHandlerBuilder()
         .frameListener(new DelegatingDecompressorFrameListener(
             connection,
@@ -68,6 +74,7 @@ public class NettyHttp2ClientInitializer extends ChannelInitializer<SocketChanne
                 .propagateSettings(true)
                 .build()))
         .frameLogger(logger)
+        .initialSettings(settings)
         .connection(connection)
         .build();
     responseHandler = new HttpResponseHandler();
@@ -88,7 +95,8 @@ public class NettyHttp2ClientInitializer extends ChannelInitializer<SocketChanne
   }
 
   protected void configureEndOfPipeline(ChannelPipeline pipeline) {
-    pipeline.addLast(settingsHandler, responseHandler);
+    //pipeline.addLast(new netty.http2.NettyHttpResponseHandler(), settingsHandler, responseHandler);
+    pipeline.addLast(new NettyHttpResponseHandler(), new NettyHttpRequestHandler(), settingsHandler, responseHandler);
   }
 
   /**
@@ -103,6 +111,7 @@ public class NettyHttp2ClientInitializer extends ChannelInitializer<SocketChanne
       @Override
       protected void configurePipeline(ChannelHandlerContext ctx, String protocol) {
         if (ApplicationProtocolNames.HTTP_2.equals(protocol)) {
+          System.out.println("HTTP/2 Negotiated");
           ChannelPipeline p = ctx.pipeline();
           p.addLast(connectionHandler);
           configureEndOfPipeline(p);
@@ -135,8 +144,8 @@ public class NettyHttp2ClientInitializer extends ChannelInitializer<SocketChanne
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
       DefaultFullHttpRequest upgradeRequest =
-          new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/");
-      ctx.writeAndFlush(upgradeRequest);
+          new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.OPTIONS, "/");
+      ctx.writeAndFlush(upgradeRequest).sync();
 
       ctx.fireChannelActive();
 
@@ -153,7 +162,7 @@ public class NettyHttp2ClientInitializer extends ChannelInitializer<SocketChanne
   private static class UserEventLogger extends ChannelInboundHandlerAdapter {
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-      System.out.println("User Event Triggered: " + evt);
+      System.err.println("User Event Triggered: " + evt);
       ctx.fireUserEventTriggered(evt);
     }
   }

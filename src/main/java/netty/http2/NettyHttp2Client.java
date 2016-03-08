@@ -1,4 +1,4 @@
-/*
+package netty.http2;/*
  * Copyright 2014 The Netty Project
  *
  * The Netty Project licenses this file to you under the Apache License, version 2.0 (the
@@ -16,6 +16,7 @@
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -43,6 +44,8 @@ import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.netty.util.AsciiString;
 import io.netty.util.CharsetUtil;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static io.netty.handler.codec.http.HttpMethod.GET;
@@ -89,39 +92,44 @@ public final class NettyHttp2Client
     }
 
     EventLoopGroup workerGroup = new NioEventLoopGroup();
-    NettyHttp2ClientInitializer initializer = new NettyHttp2ClientInitializer(sslCtx, Integer.MAX_VALUE);
+    //NettyHttp2ClientInitializer initializer = new NettyHttp2ClientInitializer(sslCtx, Integer.MAX_VALUE);
+    NettyHttp2StreamingClientInitializer initializer = new NettyHttp2StreamingClientInitializer();
 
     try {
       // Configure the client.
-      Bootstrap b = new Bootstrap();
-      b.group(workerGroup);
-      b.channel(NioSocketChannel.class);
-      b.option(ChannelOption.SO_KEEPALIVE, true);
-      b.remoteAddress(HOST, PORT);
-      b.handler(initializer);
+      Bootstrap bootstrap = new Bootstrap();
+      bootstrap.group(workerGroup);
+      bootstrap.channel(NioSocketChannel.class);
+      bootstrap.option(ChannelOption.SO_KEEPALIVE, true);
+      bootstrap.remoteAddress(HOST, PORT);
+      bootstrap.handler(initializer);
 
       // Start the client.
-      Channel channel = b.connect().syncUninterruptibly().channel();
+      Channel channel = bootstrap.connect().syncUninterruptibly().channel();
       System.out.println("Connected to [" + HOST + ':' + PORT + ']');
 
       // Wait for the HTTP/2 upgrade to occur.
       Http2SettingsHandler http2SettingsHandler = initializer.settingsHandler();
       http2SettingsHandler.awaitSettings(5, TimeUnit.SECONDS);
 
-      HttpResponseHandler responseHandler = initializer.responseHandler();
+      //HttpResponseHandler responseHandler = initializer.responseHandler();
       int streamId = 3;
       HttpScheme scheme = SSL ? HttpScheme.HTTPS : HttpScheme.HTTP;
       AsciiString hostName = new AsciiString(HOST + ':' + PORT);
       System.err.println("Sending request(s)...");
+      List<ChannelFuture> futures = new ArrayList<>();
       if (URL != null) {
         // Create a simple GET request.
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 1; i++) {
+          System.err.println("Fire original request " + i);
           FullHttpRequest request = new DefaultFullHttpRequest(HTTP_1_1, GET, URL);
           request.headers().add(HttpHeaderNames.HOST, hostName);
           request.headers().add(HttpConversionUtil.ExtensionHeaderNames.SCHEME.text(), scheme.name());
           request.headers().add(HttpHeaderNames.ACCEPT_ENCODING, HttpHeaderValues.GZIP);
           request.headers().add(HttpHeaderNames.ACCEPT_ENCODING, HttpHeaderValues.DEFLATE);
-          responseHandler.put(streamId, channel.writeAndFlush(request), channel.newPromise());
+          ChannelFuture future = channel.writeAndFlush(request);
+          futures.add(future);
+          //responseHandler.put(streamId, future, channel.newPromise());
           streamId += 2;
         }
       }
@@ -133,15 +141,33 @@ public final class NettyHttp2Client
           request.headers().add(HttpConversionUtil.ExtensionHeaderNames.SCHEME.text(), scheme.name());
           request.headers().add(HttpHeaderNames.ACCEPT_ENCODING, HttpHeaderValues.GZIP);
           request.headers().add(HttpHeaderNames.ACCEPT_ENCODING, HttpHeaderValues.DEFLATE);
-          responseHandler.put(streamId, channel.writeAndFlush(request), channel.newPromise());
+          //responseHandler.put(streamId, channel.writeAndFlush(request), channel.newPromise());
           streamId += 2;
         }
       }
-      responseHandler.awaitResponses(5, TimeUnit.SECONDS);
+      //responseHandler.awaitResponses(5, TimeUnit.SECONDS);
       System.out.println("Finished HTTP/2 request(s)");
+      long start = System.currentTimeMillis();
 
       // Wait until the connection is closed.
-      channel.close().syncUninterruptibly();
+      channel.closeFuture().sync();
+      //channel.close().sync();
+
+      long end = System.currentTimeMillis();
+      System.err.println("Server Idled for: " + (end - start) + " milliseconds");
+
+      for (int i = 0; i < 0; i++) {
+        System.err.println("Fire additional request " + i);
+        FullHttpRequest request = new DefaultFullHttpRequest(HTTP_1_1, GET, URL);
+        request.headers().add(HttpHeaderNames.HOST, hostName);
+        request.headers().add(HttpConversionUtil.ExtensionHeaderNames.SCHEME.text(), scheme.name());
+        request.headers().add(HttpHeaderNames.ACCEPT_ENCODING, HttpHeaderValues.GZIP);
+        request.headers().add(HttpHeaderNames.ACCEPT_ENCODING, HttpHeaderValues.DEFLATE);
+        ChannelFuture future = channel.writeAndFlush(request);
+        futures.add(future);
+        //responseHandler.put(streamId, future, channel.newPromise());
+        streamId += 2;
+      }
     } finally {
       workerGroup.shutdownGracefully();
     }

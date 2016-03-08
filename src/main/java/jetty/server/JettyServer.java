@@ -1,3 +1,5 @@
+package jetty.server;
+
 import org.eclipse.jetty.alpn.server.ALPNServerConnectionFactory;
 import org.eclipse.jetty.http2.HTTP2Cipher;
 import org.eclipse.jetty.http2.server.HTTP2CServerConnectionFactory;
@@ -37,6 +39,7 @@ public class JettyServer
         _server,
         new HttpConnectionFactory(configuration),
         new HTTP2CServerConnectionFactory(configuration));
+    http.setIdleTimeout(5000);
     http.setPort(HTTP_PORT);
     _server.addConnector(http);
 
