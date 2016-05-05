@@ -45,7 +45,7 @@ public class AckServlet extends HttpServlet
           break;
         }
         System.err.println("Received: " + bytes);
-        Thread.sleep(1000);
+        Thread.sleep(3000);
       }
     }
     catch (InterruptedException e)
