@@ -16,6 +16,7 @@ import io.netty.buffer.ByteBufInputStream;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.TooLongFrameException;
 import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http2.Http2CodecUtil;
 import io.netty.handler.codec.http2.Http2Connection;
 import io.netty.handler.codec.http2.Http2Error;
 import io.netty.handler.codec.http2.Http2EventAdapter;
@@ -58,6 +59,11 @@ public class Http2FrameListener extends Http2EventAdapter
   public void onHeadersRead(ChannelHandlerContext ctx, int streamId, Http2Headers headers, int padding,
       boolean endOfStream) throws Http2Exception
   {
+    // Ignores response for the upgrade request
+    if (streamId == Http2CodecUtil.HTTP_UPGRADE_STREAM_ID)
+    {
+      return;
+    }
     final StreamResponseBuilder builder = new StreamResponseBuilder();
 
     // Process HTTP/2 pseudo headers
@@ -109,6 +115,11 @@ public class Http2FrameListener extends Http2EventAdapter
   public int onDataRead(ChannelHandlerContext ctx, int streamId, ByteBuf data, int padding, boolean endOfStream)
       throws Http2Exception
   {
+    // Ignores response for the upgrade request
+    if (streamId == Http2CodecUtil.HTTP_UPGRADE_STREAM_ID)
+    {
+      return data.readableBytes() + padding;
+    }
     final TimeoutBufferedWriter writer = _connection.stream(streamId).getProperty(_writerKey);
     if (writer == null)
     {
