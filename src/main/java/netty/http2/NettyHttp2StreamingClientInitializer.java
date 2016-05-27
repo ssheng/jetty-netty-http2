@@ -1,5 +1,9 @@
 package netty.http2;
 
+import com.linkedin.data.ByteString;
+import com.linkedin.r2.message.stream.StreamResponse;
+import com.linkedin.r2.message.stream.entitystream.ReadHandle;
+import com.linkedin.r2.message.stream.entitystream.Reader;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
@@ -21,6 +25,13 @@ import io.netty.handler.codec.http2.Http2Settings;
 import io.netty.handler.codec.http2.HttpToHttp2ConnectionHandler;
 import io.netty.handler.codec.http2.HttpToHttp2ConnectionHandlerBuilder;
 import io.netty.handler.codec.http2.InboundHttp2ToHttpAdapterBuilder;
+import io.netty.handler.codec.http2.InboundHttpToHttp2Adapter;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.netty.handler.logging.LogLevel.INFO;
 
@@ -29,21 +40,17 @@ public class NettyHttp2StreamingClientInitializer extends ChannelInitializer<Soc
 {
   private static final Http2FrameLogger logger = new Http2FrameLogger(INFO, NettyHttp2StreamingClientInitializer.class);
 
-  private Http2SettingsHandler settingsHandler;
+  private final AtomicInteger _count = new AtomicInteger(0);
 
   @Override
   protected void initChannel(SocketChannel ch) throws Exception
   {
-    settingsHandler = new Http2SettingsHandler(ch.newPromise());
     final Http2Settings settings = new Http2Settings();
     settings.initialWindowSize(65535);
     settings.headerTableSize(4096);
     final Http2Connection connection = new DefaultHttp2Connection(false);
-    //final HttpToHttp2ConnectionHandler connectionHandler = new HttpToHttp2ConnectionHandlerBuilder()
     final Http2StreamCodec connectionHandler = new Http2StreamCodecBuilder()
-        .frameListener(new DelegatingDecompressorFrameListener(connection,
-            new InboundHttp2ToHttpAdapterBuilder(connection).maxContentLength(Integer.MAX_VALUE).propagateSettings(true)
-                .build()))
+        .frameListener(new Http2FrameListener(connection, Integer.MAX_VALUE))
         .frameLogger(logger)
         .connection(connection)
         .initialSettings(settings)
@@ -52,31 +59,57 @@ public class NettyHttp2StreamingClientInitializer extends ChannelInitializer<Soc
     HttpClientCodec sourceCodec = new HttpClientCodec();
     NettyHttp2ClientUpgradeCodec upgradeCodec = new NettyHttp2ClientUpgradeCodec(connectionHandler);
     HttpClientUpgradeHandler upgradeHandler = new HttpClientUpgradeHandler(sourceCodec, upgradeCodec, 65536);
+    Http2UpgradeHandler initiateHandler = new Http2UpgradeHandler();
 
-    ch.pipeline().addLast(sourceCodec, upgradeHandler, new UpgradeRequestHandler());
-  }
+    ch.pipeline().addLast(sourceCodec, upgradeHandler, initiateHandler);
+    ch.pipeline().addLast(new ChannelInboundHandlerAdapter()
+    {
+      @Override
+      public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception
+      {
+        if (msg instanceof Http2Settings)
+        {
+          ctx.fireChannelRead(msg);
+          return;
+        }
 
-  /**
-   * A handler that triggers the cleartext upgrade to HTTP/2 by sending an initial HTTP request.
-   */
-  private final class UpgradeRequestHandler extends ChannelInboundHandlerAdapter
-  {
-    @Override
-    public void channelActive(ChannelHandlerContext ctx) throws Exception {
-      DefaultFullHttpRequest upgradeRequest =
-          new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.OPTIONS, "/");
-      ctx.writeAndFlush(upgradeRequest).sync();
+        StreamResponse response = (StreamResponse) msg;
+        response.getEntityStream().setReader(new Reader()
+        {
+          ReadHandle _rh;
+          int _consumed = 0;
+          ScheduledExecutorService _scheduler = new ScheduledThreadPoolExecutor(1);
+          ScheduledFuture<?> _future = null;
 
-      ctx.fireChannelActive();
+          @Override
+          public void onDataAvailable(ByteString data)
+          {
+            _consumed += data.length();
+            _rh.request(1);
+          }
 
-      // Done with this handler, remove it from the pipeline.
-      ctx.pipeline().remove(this);
+          @Override
+          public void onDone()
+          {
+            _future.cancel(true);
+            System.err.println("Done #" +  _count.incrementAndGet() + " consumed " + _consumed + " bytes");
+          }
 
-      ctx.pipeline().addLast(settingsHandler);
-    }
-  }
+          @Override
+          public void onError(Throwable e)
+          {
+            System.err.println("Error #" +  _count.incrementAndGet() + " at " + _consumed + " bytes");
+          }
 
-  public Http2SettingsHandler settingsHandler() {
-    return settingsHandler;
+          @Override
+          public void onInit(ReadHandle rh)
+          {
+            _rh = rh;
+            _rh.request(1);
+            _future = _scheduler.schedule(() -> onError(new TimeoutException()), 5, TimeUnit.SECONDS);
+          }
+        });
+      }
+    });
   }
 }

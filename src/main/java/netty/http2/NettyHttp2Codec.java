@@ -9,23 +9,22 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
-import io.netty.handler.codec.http2.DefaultHttp2Headers;
+import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http2.Http2ConnectionDecoder;
 import io.netty.handler.codec.http2.Http2ConnectionEncoder;
 import io.netty.handler.codec.http2.Http2ConnectionHandler;
-import io.netty.handler.codec.http2.Http2Error;
-import io.netty.handler.codec.http2.Http2Exception;
 import io.netty.handler.codec.http2.Http2Headers;
 import io.netty.handler.codec.http2.Http2Settings;
+import io.netty.handler.codec.http2.HttpConversionUtil;
 
 
-class Http2StreamCodec extends Http2ConnectionHandler
+class NettyHttp2Codec extends Http2ConnectionHandler
 {
   private static final int NO_PADDING = 0;
   private static final boolean NOT_END_STREAM = false;
   private static final boolean END_STREAM = true;
 
-  protected Http2StreamCodec(Http2ConnectionDecoder decoder, Http2ConnectionEncoder encoder,
+  protected NettyHttp2Codec(Http2ConnectionDecoder decoder, Http2ConnectionEncoder encoder,
       Http2Settings initialSettings)
   {
     super(decoder, encoder, initialSettings);
@@ -43,15 +42,13 @@ class Http2StreamCodec extends Http2ConnectionHandler
     final Http2ConnectionEncoder encoder = encoder();
     final int streamId = connection().local().incrementAndGetNextStreamId();
     StreamRequest streamRequest = (StreamRequest)msg;
-    Http2Headers http2Headers = new DefaultHttp2Headers()
-        .authority(streamRequest.getHeader("HOST"))
-        .method("GET")
-        .path("/any")
-        .scheme("http");
+    HttpRequest nettyRequest = NettyRequestAdapter.toNettyRequest(streamRequest);
+    Http2Headers http2Headers = HttpConversionUtil.toHttp2Headers(nettyRequest, true);
+    encoder.writeHeaders(ctx, streamId, http2Headers, NO_PADDING, NOT_END_STREAM, promise);
+
     BufferedReader reader = new BufferedReader(ctx, encoder, streamId);
     streamRequest.getEntityStream().setReader(reader);
-    encoder.writeHeaders(ctx, streamId, http2Headers, NO_PADDING, NOT_END_STREAM, promise)
-        .addListener(future -> reader.request());
+    reader.request();
   }
 
   @Override
@@ -90,13 +87,11 @@ class Http2StreamCodec extends Http2ConnectionHandler
       _notFlushedChunks = 0;
     }
 
-    @Override
     public void onInit(ReadHandle rh)
     {
       _readHandle = rh;
     }
 
-    @Override
     public void onDataAvailable(final ByteString data)
     {
       ByteBuf content = Unpooled.wrappedBuffer(data.asByteBuffer());
@@ -107,41 +102,25 @@ class Http2StreamCodec extends Http2ConnectionHandler
       _notFlushedChunks++;
       if (_notFlushedBytes >= FLUSH_THRESHOLD || _notFlushedChunks == MAX_BUFFERED_CHUNKS)
       {
-        flush();
+        _ctx.flush();
         _notFlushedBytes = 0;
         _notFlushedChunks = 0;
       }
     }
 
-    @Override
     public void onDone()
     {
       _encoder.writeData(_ctx, _streamId, Unpooled.EMPTY_BUFFER, NO_PADDING, END_STREAM, _ctx.channel().voidPromise());
-      flush();
     }
 
-    @Override
-    public void onError(Throwable cause)
+    public void onError(Throwable e)
     {
-      Http2StreamCodec.this.onError(_ctx, Http2Exception.streamError(_streamId, Http2Error.CANCEL, cause,
-          "Encountered entity stream error event while writing to HTTP/2 stream {}", _streamId));
+      _ctx.fireExceptionCaught(e);
     }
 
     private void request()
     {
       _readHandle.request(MAX_BUFFERED_CHUNKS);
-    }
-
-    private void flush()
-    {
-      try
-      {
-        _encoder.flowController().writePendingBytes();
-      }
-      catch (Http2Exception e)
-      {
-        Http2StreamCodec.this.onError(_ctx, e);
-      }
     }
   }
 }

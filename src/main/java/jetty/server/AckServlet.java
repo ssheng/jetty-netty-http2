@@ -10,7 +10,7 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 public class AckServlet extends HttpServlet
 {
-  private static final int RESPONSE_SIZE = 10;
+  private static final int RESPONSE_SIZE = 96 * 1024;
 
   private final StringBuilder _builder = new StringBuilder();
 
@@ -44,8 +44,7 @@ public class AckServlet extends HttpServlet
         {
           break;
         }
-        System.err.println("Received: " + bytes);
-        Thread.sleep(3000);
+        Thread.sleep(0);
       }
     }
     catch (InterruptedException e)
@@ -55,6 +54,7 @@ public class AckServlet extends HttpServlet
 
     resp.setStatus(200);
     //resp.getWriter().println(req.getReader().readLine());
+    resp.getWriter().println("Payload");
   }
 
   @Override
@@ -64,6 +64,6 @@ public class AckServlet extends HttpServlet
     System.out.println(req + ", " + req.getProtocol());
 
     resp.setStatus(200);
-    resp.getWriter().println(_builder.toString());
+    resp.getWriter().println("OPTIONS");
   }
 }

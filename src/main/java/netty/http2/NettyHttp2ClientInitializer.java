@@ -51,12 +51,10 @@ public class NettyHttp2ClientInitializer extends ChannelInitializer<SocketChanne
   private HttpToHttp2ConnectionHandler connectionHandler;
   private HttpResponseHandler responseHandler;
   private Http2SettingsHandler settingsHandler;
-  private NettyHttp2EventListener eventListener;
 
   public NettyHttp2ClientInitializer(SslContext sslCtx, int maxContentLength) {
-    this.sslCtx = sslCtx;
+    this.sslCtx  = sslCtx;
     this.maxContentLength = maxContentLength;
-    this.eventListener = new NettyHttp2EventListener();
   }
 
   @Override
@@ -65,7 +63,6 @@ public class NettyHttp2ClientInitializer extends ChannelInitializer<SocketChanne
     final Http2Settings settings = new Http2Settings();
     settings.initialWindowSize(65535);
     settings.headerTableSize(4096);
-    connection.addListener(eventListener);
     connectionHandler = new HttpToHttp2ConnectionHandlerBuilder()
         .frameListener(new DelegatingDecompressorFrameListener(
             connection,
