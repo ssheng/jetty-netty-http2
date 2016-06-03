@@ -52,7 +52,7 @@ public final class Http2MultiChannelClient
       bootstrap.handler(initializer);
 
       List<ChannelFuture> closeFutures = new ArrayList<>();
-      for (int i = 0; i < 10; i++) {
+      for (int i = 0; i < 100; i++) {
         // Start the client.
         Channel channel = bootstrap.connect().syncUninterruptibly().channel();
         //System.out.println("#" + i + " Connected to [" + HOST + ':' + PORT + ']');

@@ -291,6 +291,10 @@ public class Http2FrameListener extends Http2EventAdapter
             fail(e);
             return;
           }
+          finally
+          {
+            _ctx.flush();
+          }
         }
         else
         {

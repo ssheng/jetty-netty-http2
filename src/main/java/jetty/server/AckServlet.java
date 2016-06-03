@@ -35,15 +35,18 @@ public class AckServlet extends HttpServlet
   protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException
   {
     System.out.println(req + ", " + req.getProtocol());
+    int size = 0;
     try
     {
       while (true)
       {
         char[] bytes = new char[8192];
-        if (req.getReader().read(bytes) < 0)
+        int read = req.getReader().read(bytes);
+        if (read < 0)
         {
           break;
         }
+        size += read;
         Thread.sleep(0);
       }
     }
@@ -54,7 +57,7 @@ public class AckServlet extends HttpServlet
 
     resp.setStatus(200);
     //resp.getWriter().println(req.getReader().readLine());
-    resp.getWriter().println("Payload");
+    resp.getWriter().println("payload=" + size);
   }
 
   @Override

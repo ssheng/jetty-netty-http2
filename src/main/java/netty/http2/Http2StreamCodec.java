@@ -142,6 +142,10 @@ class Http2StreamCodec extends Http2ConnectionHandler
       {
         Http2StreamCodec.this.onError(_ctx, e);
       }
+      finally
+      {
+        _ctx.flush();
+      }
     }
   }
 }

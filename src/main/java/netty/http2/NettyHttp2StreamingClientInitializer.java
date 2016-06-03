@@ -51,7 +51,7 @@ public class NettyHttp2StreamingClientInitializer extends ChannelInitializer<Soc
     final Http2Connection connection = new DefaultHttp2Connection(false);
     final Http2StreamCodec connectionHandler = new Http2StreamCodecBuilder()
         .frameListener(new Http2FrameListener(connection, Integer.MAX_VALUE))
-        .frameLogger(logger)
+        //.frameLogger(logger)
         .connection(connection)
         .initialSettings(settings)
         .gracefulShutdownTimeoutMillis(30000)
