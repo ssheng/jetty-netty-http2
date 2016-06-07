@@ -1,6 +1,5 @@
 package jetty.server;
 
-import java.util.concurrent.atomic.AtomicInteger;
 import org.eclipse.jetty.alpn.server.ALPNServerConnectionFactory;
 import org.eclipse.jetty.http2.HTTP2Cipher;
 import org.eclipse.jetty.http2.server.HTTP2CServerConnectionFactory;
