@@ -33,6 +33,7 @@ public class JettyServer
     configuration.setSecurePort(HTTPS_PORT);
     configuration.setSendXPoweredBy(true);
     configuration.setSendServerVersion(true);
+    configuration.setRequestHeaderSize(128 * 1024);
 
     // HTTP Connector
     ServerConnector http = new ServerConnector(

@@ -136,7 +136,7 @@ public class NettyHttp2ClientInitializer extends ChannelInitializer<SocketChanne
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
       DefaultFullHttpRequest upgradeRequest =
-          new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/echo");
+          new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.OPTIONS, "/echo");
       upgradeRequest.headers().add(HttpHeaderNames.HOST, "localhost:8080");
       ctx.writeAndFlush(upgradeRequest);
 
