@@ -68,7 +68,7 @@ public class NettyHttp2ClientInitializer extends ChannelInitializer<SocketChanne
                 .maxContentLength(maxContentLength)
                 .propagateSettings(true)
                 .build()))
-        .frameLogger(logger)
+        //.frameLogger(logger)
         .connection(connection)
         .build();
     responseHandler = new HttpResponseHandler();
@@ -121,7 +121,7 @@ public class NettyHttp2ClientInitializer extends ChannelInitializer<SocketChanne
   private void configureClearText(SocketChannel ch) {
     HttpClientCodec sourceCodec = new HttpClientCodec();
     Http2ClientUpgradeCodec upgradeCodec = new Http2ClientUpgradeCodec(connectionHandler);
-    HttpClientUpgradeHandler upgradeHandler = new HttpClientUpgradeHandler(sourceCodec, upgradeCodec, 65536);
+    HttpClientUpgradeHandler upgradeHandler = new HttpClientUpgradeHandler(sourceCodec, upgradeCodec, 256 * 1024);
 
     ch.pipeline().addLast(sourceCodec,
         upgradeHandler,

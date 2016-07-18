@@ -19,22 +19,14 @@ import com.linkedin.r2.message.stream.StreamRequestBuilder;
 import com.linkedin.r2.message.stream.entitystream.ByteStringWriter;
 import com.linkedin.r2.message.stream.entitystream.EntityStreams;
 import io.netty.bootstrap.Bootstrap;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.example.http2.helloworld.client.Http2SettingsHandler;
-import io.netty.example.http2.helloworld.client.HttpResponseHandler;
-import io.netty.handler.codec.http.DefaultFullHttpRequest;
-import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaderNames;
-import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpScheme;
 import io.netty.handler.codec.http2.Http2SecurityUtil;
-import io.netty.handler.codec.http2.HttpConversionUtil;
 import io.netty.handler.ssl.ApplicationProtocolConfig;
 import io.netty.handler.ssl.ApplicationProtocolConfig.Protocol;
 import io.netty.handler.ssl.ApplicationProtocolConfig.SelectedListenerFailureBehavior;
@@ -47,23 +39,17 @@ import io.netty.handler.ssl.SslProvider;
 import io.netty.handler.ssl.SupportedCipherSuiteFilter;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.netty.util.AsciiString;
-import io.netty.util.CharsetUtil;
 
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CountDownLatch;
 
-import static io.netty.handler.codec.http.HttpMethod.GET;
-import static io.netty.handler.codec.http.HttpMethod.POST;
-import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
 /**
  * An HTTP2 client that allows you to send HTTP2 frames to a server. Inbound and outbound frames are
  * logged. When run from the command-line, sends a single HEADERS frame to the server and gets back
  * a "Hello World" response.
  */
-public final class NettyHttp2Client
+public final class ConcurrentHttp2Client
 {
   static final boolean SSL = System.getProperty("ssl") != null;
   static final String HOST = System.getProperty("host", "127.0.0.1");
@@ -97,8 +83,7 @@ public final class NettyHttp2Client
     }
 
     EventLoopGroup workerGroup = new NioEventLoopGroup();
-    //NettyHttp2ClientInitializer initializer = new NettyHttp2ClientInitializer(sslCtx, Integer.MAX_VALUE);
-    NettyHttp2StreamingClientInitializer initializer = new NettyHttp2StreamingClientInitializer();
+    ConcurrentHttp2ClientInitializer initializer = new ConcurrentHttp2ClientInitializer();
 
     try {
       // Configure the client.
@@ -118,13 +103,14 @@ public final class NettyHttp2Client
       System.err.println("Sending request(s)...");
       if (URL != null) {
         // Create a simple GET request.
-        for (int i = 0; i < 10; i++) {
-          System.err.println("Send original request " + i);
+        for (int i = 0; i < 1000; i++) {
           StreamRequest request = new StreamRequestBuilder(new URI(URL))
               .setMethod("GET")
               .setHeader(HttpHeaderNames.HOST.toString(), hostName.toString())
-              .build(EntityStreams.emptyStream());
+              //.build(EntityStreams.emptyStream());
+              .build(EntityStreams.newEntityStream(new ByteStringWriter(ByteString.copy(new byte[32 * 1024]))));
           channel.writeAndFlush(request);
+          System.err.println("Sent request #" + i);
         }
       }
       System.err.println("Finished HTTP/2 request(s)");
@@ -132,7 +118,6 @@ public final class NettyHttp2Client
 
       // Wait until the connection is closed.
       channel.closeFuture().sync();
-      //channel.close().sync();
 
       long end = System.currentTimeMillis();
       System.err.println("Server Idled for: " + (end - start) + " milliseconds");

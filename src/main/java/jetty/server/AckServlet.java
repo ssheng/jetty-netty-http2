@@ -10,7 +10,7 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 public class AckServlet extends HttpServlet
 {
-  private static final int RESPONSE_SIZE = 96 * 1024;
+  private static final int RESPONSE_SIZE = 8 * 1024;
 
   private final StringBuilder _builder = new StringBuilder();
 

@@ -135,11 +135,6 @@ public class Http2FrameListener extends Http2EventAdapter
 
   @Override
   public void onRstStreamRead(ChannelHandlerContext ctx, int streamId, long errorCode) throws Http2Exception {
-    if (Http2Error.NO_ERROR != Http2Error.valueOf(errorCode))
-    {
-      LOG.warn("Stream with ID {} encountered reset stream from remote with error {}", streamId, Http2Error.valueOf(errorCode));
-      return;
-    }
     LOG.debug("Stream with ID {} encountered reset stream from remove", streamId);
   }
 

@@ -44,7 +44,6 @@ import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.netty.util.AsciiString;
 import io.netty.util.CharsetUtil;
 
-import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 import static io.netty.handler.codec.http.HttpMethod.GET;
@@ -113,22 +112,19 @@ public final class NettyHttp2Client {
       AsciiString hostName = new AsciiString(HOST + ':' + PORT);
       System.err.println("Sending request(s)...");
 
-      byte[] bytes = new byte[1024];
-      Arrays.fill(bytes, (byte)'a');
-      String content = new String(bytes);
       if (URL != null) {
-        // Create a simple GET request.
-        FullHttpRequest request = new DefaultFullHttpRequest(HTTP_1_1, GET, URL);
-        request.headers().add(HttpHeaderNames.HOST, hostName);
-        request.headers().add(HttpConversionUtil.ExtensionHeaderNames.SCHEME.text(), scheme.name());
-        request.headers().add(HttpHeaderNames.ACCEPT_ENCODING, HttpHeaderValues.GZIP);
-        request.headers().add(HttpHeaderNames.ACCEPT_ENCODING, HttpHeaderValues.DEFLATE);
-        for (int i = 0; i < 38; i++)
+        for (int i = 0; i < 2; i++)
         {
-          request.headers().add("x-dummy-header-" + i, content);
+          // Create a simple GET request.
+          FullHttpRequest request = new DefaultFullHttpRequest(HTTP_1_1, GET, URL, Unpooled.wrappedBuffer(new byte[32 * 1024]));
+          //FullHttpRequest request = new DefaultFullHttpRequest(HTTP_1_1, GET, URL);
+          request.headers().add(HttpHeaderNames.HOST, hostName);
+          request.headers().add(HttpConversionUtil.ExtensionHeaderNames.SCHEME.text(), scheme.name());
+          request.headers().add(HttpHeaderNames.ACCEPT_ENCODING, HttpHeaderValues.GZIP);
+          request.headers().add(HttpHeaderNames.ACCEPT_ENCODING, HttpHeaderValues.DEFLATE);
+          responseHandler.put(streamId, channel.writeAndFlush(request), channel.newPromise());
+          streamId += 2;
         }
-        responseHandler.put(streamId, channel.writeAndFlush(request), channel.newPromise());
-        streamId += 2;
       }
       if (URL2 != null) {
         // Create a simple POST request with a body.

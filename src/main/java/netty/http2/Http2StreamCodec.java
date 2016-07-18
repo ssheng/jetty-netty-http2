@@ -54,13 +54,6 @@ class Http2StreamCodec extends Http2ConnectionHandler
         .addListener(future -> reader.request());
   }
 
-  @Override
-  public void flush(ChannelHandlerContext ctx)
-  {
-    // TODO: should we optimize and not flush here and rely on BufferedReader to flush
-    ctx.flush();
-  }
-
   /**
    * A reader that has pipelining/buffered reading
    *
@@ -105,7 +98,7 @@ class Http2StreamCodec extends Http2ConnectionHandler
 
       _notFlushedBytes += data.length();
       _notFlushedChunks++;
-      if (_notFlushedBytes >= FLUSH_THRESHOLD || _notFlushedChunks == MAX_BUFFERED_CHUNKS)
+      if (true || _notFlushedBytes >= FLUSH_THRESHOLD || _notFlushedChunks == MAX_BUFFERED_CHUNKS)
       {
         flush();
         _notFlushedBytes = 0;

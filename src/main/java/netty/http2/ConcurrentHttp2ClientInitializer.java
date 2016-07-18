@@ -7,25 +7,14 @@ import com.linkedin.r2.message.stream.entitystream.Reader;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.example.http2.helloworld.client.Http2ClientInitializer;
-import io.netty.example.http2.helloworld.client.Http2SettingsHandler;
-import io.netty.example.http2.helloworld.client.HttpResponseHandler;
-import io.netty.handler.codec.http.DefaultFullHttpRequest;
 import io.netty.handler.codec.http.HttpClientCodec;
 import io.netty.handler.codec.http.HttpClientUpgradeHandler;
-import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http2.DefaultHttp2Connection;
-import io.netty.handler.codec.http2.DelegatingDecompressorFrameListener;
 import io.netty.handler.codec.http2.Http2Connection;
 import io.netty.handler.codec.http2.Http2FrameLogger;
 import io.netty.handler.codec.http2.Http2Settings;
-import io.netty.handler.codec.http2.HttpToHttp2ConnectionHandler;
-import io.netty.handler.codec.http2.HttpToHttp2ConnectionHandlerBuilder;
-import io.netty.handler.codec.http2.InboundHttp2ToHttpAdapterBuilder;
-import io.netty.handler.codec.http2.InboundHttpToHttp2Adapter;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -36,9 +25,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static io.netty.handler.logging.LogLevel.INFO;
 
 
-public class NettyHttp2StreamingClientInitializer extends ChannelInitializer<SocketChannel>
+public class ConcurrentHttp2ClientInitializer extends ChannelInitializer<SocketChannel>
 {
-  private static final Http2FrameLogger logger = new Http2FrameLogger(INFO, NettyHttp2StreamingClientInitializer.class);
+  private static final Http2FrameLogger logger = new Http2FrameLogger(INFO, ConcurrentHttp2ClientInitializer.class);
 
   private final AtomicInteger _count = new AtomicInteger(0);
 
@@ -92,13 +81,14 @@ public class NettyHttp2StreamingClientInitializer extends ChannelInitializer<Soc
           public void onDone()
           {
             _future.cancel(true);
+
             System.err.println("Done #" +  _count.incrementAndGet() + " consumed " + _consumed + " bytes");
           }
 
           @Override
           public void onError(Throwable e)
           {
-            System.err.println("Error #" +  _count.incrementAndGet() + " at " + _consumed + " bytes");
+            System.err.println("Error #" +  _count.incrementAndGet() + " at " + _consumed + " bytes. Caused by " + e.getClass());
           }
 
           @Override
