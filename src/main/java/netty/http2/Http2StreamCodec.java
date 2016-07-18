@@ -98,7 +98,7 @@ class Http2StreamCodec extends Http2ConnectionHandler
 
       _notFlushedBytes += data.length();
       _notFlushedChunks++;
-      if (true || _notFlushedBytes >= FLUSH_THRESHOLD || _notFlushedChunks == MAX_BUFFERED_CHUNKS)
+      if (_notFlushedBytes >= FLUSH_THRESHOLD || _notFlushedChunks == MAX_BUFFERED_CHUNKS)
       {
         flush();
         _notFlushedBytes = 0;
