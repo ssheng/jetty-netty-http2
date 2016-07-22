@@ -81,7 +81,6 @@ public class ConcurrentHttp2ClientInitializer extends ChannelInitializer<SocketC
           public void onDone()
           {
             _future.cancel(true);
-
             System.err.println("Done #" +  _count.incrementAndGet() + " consumed " + _consumed + " bytes");
           }
 

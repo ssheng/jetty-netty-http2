@@ -25,7 +25,7 @@ public class AckServlet extends HttpServlet
   @Override
   protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException
   {
-    System.out.println(req + ", " + req.getProtocol());
+    System.out.println(req + ", " + req.getProtocol() + ", Secure=" + req.isSecure());
 
     resp.setStatus(200);
     resp.getWriter().println(_builder.toString());
@@ -34,7 +34,7 @@ public class AckServlet extends HttpServlet
   @Override
   protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException
   {
-    System.out.println(req + ", " + req.getProtocol());
+    System.out.println(req + ", " + req.getProtocol() + ", Secure=" + req.isSecure());
     int size = 0;
     try
     {
@@ -64,7 +64,7 @@ public class AckServlet extends HttpServlet
   protected void doOptions(HttpServletRequest req, HttpServletResponse resp)
       throws ServletException, IOException
   {
-    System.out.println(req + ", " + req.getProtocol());
+    System.out.println(req + ", " + req.getProtocol() + ", Secure=" + req.isSecure());
 
     resp.setStatus(200);
     resp.getWriter().println("OPTIONS");

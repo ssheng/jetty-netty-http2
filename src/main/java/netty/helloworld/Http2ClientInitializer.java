@@ -12,7 +12,7 @@
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
-package netty.example;
+package netty.helloworld;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -44,8 +44,8 @@ import static io.netty.handler.logging.LogLevel.INFO;
 /**
  * Configures the client pipeline to support HTTP/2 frames.
  */
-public class NettyHttp2ClientInitializer extends ChannelInitializer<SocketChannel> {
-  private static final Http2FrameLogger logger = new Http2FrameLogger(INFO, NettyHttp2ClientInitializer.class);
+public class Http2ClientInitializer extends ChannelInitializer<SocketChannel> {
+  private static final Http2FrameLogger logger = new Http2FrameLogger(INFO, Http2ClientInitializer.class);
 
   private final SslContext sslCtx;
   private final int maxContentLength;
@@ -53,7 +53,7 @@ public class NettyHttp2ClientInitializer extends ChannelInitializer<SocketChanne
   private HttpResponseHandler responseHandler;
   private Http2SettingsHandler settingsHandler;
 
-  public NettyHttp2ClientInitializer(SslContext sslCtx, int maxContentLength) {
+  public Http2ClientInitializer(SslContext sslCtx, int maxContentLength) {
     this.sslCtx = sslCtx;
     this.maxContentLength = maxContentLength;
   }
@@ -68,7 +68,7 @@ public class NettyHttp2ClientInitializer extends ChannelInitializer<SocketChanne
                 .maxContentLength(maxContentLength)
                 .propagateSettings(true)
                 .build()))
-        //.frameLogger(logger)
+        .frameLogger(logger)
         .connection(connection)
         .build();
     responseHandler = new HttpResponseHandler();
@@ -121,7 +121,7 @@ public class NettyHttp2ClientInitializer extends ChannelInitializer<SocketChanne
   private void configureClearText(SocketChannel ch) {
     HttpClientCodec sourceCodec = new HttpClientCodec();
     Http2ClientUpgradeCodec upgradeCodec = new Http2ClientUpgradeCodec(connectionHandler);
-    HttpClientUpgradeHandler upgradeHandler = new HttpClientUpgradeHandler(sourceCodec, upgradeCodec, 256 * 1024);
+    HttpClientUpgradeHandler upgradeHandler = new HttpClientUpgradeHandler(sourceCodec, upgradeCodec, 65536);
 
     ch.pipeline().addLast(sourceCodec,
         upgradeHandler,
@@ -136,7 +136,7 @@ public class NettyHttp2ClientInitializer extends ChannelInitializer<SocketChanne
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
       DefaultFullHttpRequest upgradeRequest =
-          new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.OPTIONS, "/echo");
+          new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.OPTIONS, "/");
       upgradeRequest.headers().add(HttpHeaderNames.HOST, "localhost:8080");
       ctx.writeAndFlush(upgradeRequest);
 

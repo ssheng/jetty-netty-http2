@@ -12,7 +12,7 @@
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
-package netty.example;
+package netty.helloworld;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.Unpooled;
@@ -55,7 +55,7 @@ import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
  * logged. When run from the command-line, sends a single HEADERS frame to the server and gets back
  * a "Hello World" response.
  */
-public final class NettyHttp2Client {
+public final class Http2Client {
 
   static final boolean SSL = System.getProperty("ssl") != null;
   static final String HOST = System.getProperty("host", "127.0.0.1");
@@ -75,11 +75,13 @@ public final class NettyHttp2Client {
                  * Please refer to the HTTP/2 specification for cipher requirements. */
           .ciphers(Http2SecurityUtil.CIPHERS, SupportedCipherSuiteFilter.INSTANCE)
           .trustManager(InsecureTrustManagerFactory.INSTANCE)
-          .applicationProtocolConfig(new ApplicationProtocolConfig(Protocol.ALPN,
+          .applicationProtocolConfig(new ApplicationProtocolConfig(
+              Protocol.ALPN,
               // NO_ADVERTISE is currently the only mode supported by both OpenSsl and JDK providers.
               SelectorFailureBehavior.NO_ADVERTISE,
               // ACCEPT is currently the only mode supported by both OpenSsl and JDK providers.
-              SelectedListenerFailureBehavior.ACCEPT, ApplicationProtocolNames.HTTP_2,
+              SelectedListenerFailureBehavior.ACCEPT,
+              ApplicationProtocolNames.HTTP_2,
               ApplicationProtocolNames.HTTP_1_1))
           .build();
     } else {
@@ -87,7 +89,7 @@ public final class NettyHttp2Client {
     }
 
     EventLoopGroup workerGroup = new NioEventLoopGroup();
-    NettyHttp2ClientInitializer initializer = new NettyHttp2ClientInitializer(sslCtx, Integer.MAX_VALUE);
+    Http2ClientInitializer initializer = new Http2ClientInitializer(sslCtx, Integer.MAX_VALUE);
 
     try {
       // Configure the client.
@@ -111,20 +113,15 @@ public final class NettyHttp2Client {
       HttpScheme scheme = SSL ? HttpScheme.HTTPS : HttpScheme.HTTP;
       AsciiString hostName = new AsciiString(HOST + ':' + PORT);
       System.err.println("Sending request(s)...");
-
       if (URL != null) {
-        for (int i = 0; i < 2; i++)
-        {
-          // Create a simple GET request.
-          FullHttpRequest request = new DefaultFullHttpRequest(HTTP_1_1, GET, URL, Unpooled.wrappedBuffer(new byte[32 * 1024]));
-          //FullHttpRequest request = new DefaultFullHttpRequest(HTTP_1_1, GET, URL);
-          request.headers().add(HttpHeaderNames.HOST, hostName);
-          request.headers().add(HttpConversionUtil.ExtensionHeaderNames.SCHEME.text(), scheme.name());
-          request.headers().add(HttpHeaderNames.ACCEPT_ENCODING, HttpHeaderValues.GZIP);
-          request.headers().add(HttpHeaderNames.ACCEPT_ENCODING, HttpHeaderValues.DEFLATE);
-          responseHandler.put(streamId, channel.writeAndFlush(request), channel.newPromise());
-          streamId += 2;
-        }
+        // Create a simple GET request.
+        FullHttpRequest request = new DefaultFullHttpRequest(HTTP_1_1, GET, URL);
+        request.headers().add(HttpHeaderNames.HOST, hostName);
+        request.headers().add(HttpConversionUtil.ExtensionHeaderNames.SCHEME.text(), scheme.name());
+        request.headers().add(HttpHeaderNames.ACCEPT_ENCODING, HttpHeaderValues.GZIP);
+        request.headers().add(HttpHeaderNames.ACCEPT_ENCODING, HttpHeaderValues.DEFLATE);
+        responseHandler.put(streamId, channel.writeAndFlush(request), channel.newPromise());
+        streamId += 2;
       }
       if (URL2 != null) {
         // Create a simple POST request with a body.

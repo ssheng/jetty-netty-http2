@@ -103,12 +103,13 @@ public final class ConcurrentHttp2Client
       System.err.println("Sending request(s)...");
       if (URL != null) {
         // Create a simple GET request.
-        for (int i = 0; i < 1000; i++) {
+        for (int i = 0; i < 1; i++) {
           StreamRequest request = new StreamRequestBuilder(new URI(URL))
               .setMethod("GET")
+              //.setMethod("POST")
               .setHeader(HttpHeaderNames.HOST.toString(), hostName.toString())
               //.build(EntityStreams.emptyStream());
-              .build(EntityStreams.newEntityStream(new ByteStringWriter(ByteString.copy(new byte[32 * 1024]))));
+              .build(EntityStreams.newEntityStream(new ByteStringWriter(ByteString.copy(new byte[0 * 1024]))));
           channel.writeAndFlush(request);
           System.err.println("Sent request #" + i);
         }
