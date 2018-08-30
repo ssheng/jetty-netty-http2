@@ -72,7 +72,7 @@ public class JettyServer
     _server.addConnector(http2Connector);
 
     ServletContextHandler handler = new ServletContextHandler(_server, "");
-    handler.addServlet(new ServletHolder(new AckServlet()), "/*");
+    handler.addServlet(new ServletHolder(new DelayedServlet()), "/*");
   }
 
   public Server instance()
